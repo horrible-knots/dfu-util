@@ -153,7 +153,23 @@ static int dfuse_download(struct dfu_if *dif, const unsigned short length,
 		   unsigned char *data, unsigned short transaction)
 {
 	int status;
+	int retry = 10;
+	int ret;
+	struct dfu_status dst;
+	
+	// Work around calling dfuse_download while the pipe is still busy.  
+	// This is a hack/workaround for devices that lie about operation time.
+	ret = dfu_get_status(dif, &dst);
 
+	while (ret == LIBUSB_ERROR_PIPE && retry--) {
+		fprintf(stderr, "dfuse_download: called while pipe busy.  Stalling %i more times.\n", retry+1);
+		milli_sleep(25);
+		ret = dfu_get_status(dif, &dst);
+	}
+	
+	if (ret != LIBUSB_ERROR_PIPE) 
+		fprintf(stderr, "dfuse_download: pipe became free in time.\n"); 
+	
 	status = libusb_control_transfer(dif->dev_handle,
 		 /* bmRequestType */	 LIBUSB_ENDPOINT_OUT |
 					 LIBUSB_REQUEST_TYPE_CLASS |
