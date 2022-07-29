@@ -167,7 +167,7 @@ static int dfuse_download(struct dfu_if *dif, const unsigned short length,
 		ret = dfu_get_status(dif, &dst);
 	}
 	
-	if (ret != LIBUSB_ERROR_PIPE) 
+	if (ret != LIBUSB_ERROR_PIPE && retry < 10) 
 		fprintf(stderr, "dfuse_download: pipe became free in time.\n"); 
 	
 	status = libusb_control_transfer(dif->dev_handle,
