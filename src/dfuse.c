@@ -155,12 +155,17 @@ static int dfuse_download(struct dfu_if *dif, const unsigned short length,
 	int status;
 	int retry = 10;
 	int ret;
+	int dfu_state;
 	struct dfu_status dst;
 	
 	// Work around calling dfuse_download while the pipe is still busy.  
 	// This is a hack/workaround for devices that lie about operation time.
 	ret = dfu_get_status(dif, &dst);
-	fprintf(stderr, "In dfuse_download.  dfu_get_status return was: %i\n", ret);
+	dfu_state = dfu_get_state(dif->dev_handle, dif->interface);
+	
+	fprintf(stderr, "dfuse_download: dfu_get_status return was: %i\n", ret);
+	fprintf(stderr, "dfu bStatus: %i (%s)\n", dst.bStatus, dfu_state_to_string(dst.bStatus));
+	fprintf(stderr, "dfu state: %i (%s)\n", dfu_state, dfu_state_to_string(dfu_state));
 	
 	while (ret < 0 && retry--) {
 		fprintf(stderr, "dfuse_download: called while pipe busy.  Stalling %i more times.\n", retry+1);
@@ -191,6 +196,13 @@ static int dfuse_download(struct dfu_if *dif, const unsigned short length,
 		warnx("dfuse_download: libusb_control_transfer returned %d (%s)",
 		      status, libusb_error_name(status));
 	}
+	
+	ret = dfu_get_status(dif, &dst);
+	dfu_state = dfu_get_state(dif->dev_handle, dif->interface);
+	
+	fprintf(stderr, "dfu bStatus: %i (%s)\n", dst.bStatus, dfu_status_to_string(dst.bStatus));
+	fprintf(stderr, "dfu state: %i (%s)\n", dfu_state, dfu_state_to_string(dfu_state));
+	
 	return status;
 }
 
