@@ -160,15 +160,19 @@ static int dfuse_download(struct dfu_if *dif, const unsigned short length,
 	// Work around calling dfuse_download while the pipe is still busy.  
 	// This is a hack/workaround for devices that lie about operation time.
 	ret = dfu_get_status(dif, &dst);
-
-	while (ret == LIBUSB_ERROR_PIPE && retry--) {
+	fprintf(stderr, "In dfuse_download.  dfu_get_status return was: %i\n", ret);
+	
+	while (ret < 0 && retry--) {
 		fprintf(stderr, "dfuse_download: called while pipe busy.  Stalling %i more times.\n", retry+1);
-		milli_sleep(25);
+		usleep(2500);
 		ret = dfu_get_status(dif, &dst);
 	}
 	
-	if (ret != LIBUSB_ERROR_PIPE && retry < 10) 
+	if (ret > 0 && retry < 10) 
 		fprintf(stderr, "dfuse_download: pipe became free in time.\n"); 
+	
+	if (ret < 0)
+		fprintf(stderr, "dfuse_download: error getting pipe status.\n");
 	
 	status = libusb_control_transfer(dif->dev_handle,
 		 /* bmRequestType */	 LIBUSB_ENDPOINT_OUT |
@@ -307,8 +311,10 @@ static int dfuse_dnload_chunk(struct dfu_if *dif, unsigned char *data, int size,
 	int bytes_sent;
 	struct dfu_status dst;
 	int ret;
-
+    int tries = 3;
+	
 	ret = dfuse_download(dif, size, size ? data : NULL, transaction);
+
 	if (ret < 0) {
 		errx(EX_IOERR, "Error during download");
 		return ret;
@@ -317,7 +323,7 @@ static int dfuse_dnload_chunk(struct dfu_if *dif, unsigned char *data, int size,
 
 	do {
 		ret = dfu_get_status(dif, &dst);
-		if (ret < 0) {
+		if (ret < 0 && ret != LIBUSB_ERROR_PIPE) {
 			errx(EX_IOERR, "Error during download get_status");
 			return ret;
 		}
