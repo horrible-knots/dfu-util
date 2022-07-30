@@ -356,6 +356,8 @@ int main(int argc, char **argv)
 	}
 
 	print_version();
+	printf("Build date: %s %s.\n\n", __DATE__, __TIME__);
+	fprintf(stderr, "Build date: %s %s.\n\n", __DATE__, __TIME__);
 	if (mode == MODE_VERSION) {
 		exit(EX_OK);
 	}
