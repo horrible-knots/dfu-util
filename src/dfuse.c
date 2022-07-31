@@ -201,6 +201,7 @@ static int dfuse_download(struct dfu_if *dif, const unsigned short length,
 	dfu_state = dfu_get_state(dif->dev_handle, dif->interface);
 	
 	fprintf(stderr, "dfu bStatus: %i (%s)\n", dst.bStatus, dfu_status_to_string(dst.bStatus));
+	fprintf(stderr, "dfu bwPollTimeout: %i\n", dst.bwPollTimeout);
 	fprintf(stderr, "dfu state: %i (%s)\n", dfu_state, dfu_state_to_string(dfu_state));
 	
 	return status;
