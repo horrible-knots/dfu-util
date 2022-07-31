@@ -165,6 +165,7 @@ static int dfuse_download(struct dfu_if *dif, const unsigned short length,
 	
 	fprintf(stderr, "dfuse_download: dfu_get_status return was: %i\n", ret);
 	fprintf(stderr, "dfu bStatus: %i (%s)\n", dst.bStatus, dfu_state_to_string(dst.bStatus));
+	fprintf(stderr, "dfu bwPollTimeout: %i\n", dst.bwPollTimeout);
 	fprintf(stderr, "dfu state: %i (%s)\n", dfu_state, dfu_state_to_string(dfu_state));
 	
 	while (ret < 0 && retry--) {
@@ -178,6 +179,8 @@ static int dfuse_download(struct dfu_if *dif, const unsigned short length,
 	
 	if (ret < 0)
 		fprintf(stderr, "dfuse_download: error getting pipe status.\n");
+	
+	milli_sleep(250);
 	
 	status = libusb_control_transfer(dif->dev_handle,
 		 /* bmRequestType */	 LIBUSB_ENDPOINT_OUT |
