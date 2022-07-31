@@ -298,7 +298,8 @@ static int dfuse_special_command(struct dfu_if *dif, unsigned int address,
 		/* wait while command is executed */
 		if (verbose > 1)
 			fprintf(stderr, "   Poll timeout %i ms\n", polltimeout);
-		milli_sleep(polltimeout);
+		//milli_sleep(polltimeout);
+		milli_sleep(250);
 		if (command == READ_UNPROTECT)
 			return ret;
 		/* Workaround for e.g. Black Magic Probe getting stuck */
