@@ -167,6 +167,7 @@ static int dfuse_download(struct dfu_if *dif, const unsigned short length,
 	fprintf(stderr, "dfu bStatus: %i (%s)\n", dst.bStatus, dfu_state_to_string(dst.bStatus));
 	fprintf(stderr, "dfu bwPollTimeout: %i\n", dst.bwPollTimeout);
 	fprintf(stderr, "dfu state: %i (%s)\n", dfu_state, dfu_state_to_string(dfu_state));
+	milli_sleep(dst.bwPollTimeout);
 	
 	while (ret < 0 && retry--) {
 		fprintf(stderr, "dfuse_download: called while pipe busy.  Stalling %i more times.\n", retry+1);
@@ -180,25 +181,34 @@ static int dfuse_download(struct dfu_if *dif, const unsigned short length,
 	if (ret < 0)
 		fprintf(stderr, "dfuse_download: error getting pipe status.\n");
 	
-	milli_sleep(250);
-	
-	status = libusb_control_transfer(dif->dev_handle,
-		 /* bmRequestType */	 LIBUSB_ENDPOINT_OUT |
-					 LIBUSB_REQUEST_TYPE_CLASS |
-					 LIBUSB_RECIPIENT_INTERFACE,
-		 /* bRequest      */	 DFU_DNLOAD,
-		 /* wValue        */	 transaction,
-		 /* wIndex        */	 dif->interface,
-		 /* Data          */	 data,
-		 /* wLength       */	 length,
-					 DFU_TIMEOUT);
-	if (status < 0) {
-		/* Silently fail on leave request on some unpredictable devices */
-		if ((dif->quirks & QUIRK_DFUSE_LEAVE) && !length && !data && transaction == 2)
-			return status;
-		warnx("dfuse_download: libusb_control_transfer returned %d (%s)",
-		      status, libusb_error_name(status));
-	}
+	do {
+		status = libusb_control_transfer(dif->dev_handle,
+			 /* bmRequestType */	 LIBUSB_ENDPOINT_OUT |
+						 LIBUSB_REQUEST_TYPE_CLASS |
+						 LIBUSB_RECIPIENT_INTERFACE,
+			 /* bRequest      */	 DFU_DNLOAD,
+			 /* wValue        */	 transaction,
+			 /* wIndex        */	 dif->interface,
+			 /* Data          */	 data,
+			 /* wLength       */	 length,
+						 DFU_TIMEOUT);
+		if (status < 0) {
+			/* Silently fail on leave request on some unpredictable devices */
+			if ((dif->quirks & QUIRK_DFUSE_LEAVE) && !length && !data && transaction == 2)
+				return status;
+			warnx("dfuse_download: libusb_control_transfer returned %d (%s)",
+				  status, libusb_error_name(status));
+		}
+		
+		if (status == LIBUSB_ERROR_PIPE) {
+			ret = dfu_get_status(dif, &dst);
+			dfu_state = dfu_get_state(dif->dev_handle, dif->interface);
+			fprintf(stderr, "dfuse_download: ERROR PIPE bStatus: %i (%s)\n", dst.bStatus, dfu_status_to_string(dst.bStatus));
+			fprintf(stderr, "dfuse_download: ERROR PIPE dfu state: %i (%s)\n", dfu_state, dfu_state_to_string(dfu_state));
+			fprintf(stderr, "dfuse_download: ERROR PIPE sleeping %i ms.\n", dst.bwPollTimeout);
+			milli_sleep(dst.bwPollTimeout);
+		}
+	} while (status == LIBUSB_ERROR_PIPE && retry--);
 	
 	ret = dfu_get_status(dif, &dst);
 	dfu_state = dfu_get_state(dif->dev_handle, dif->interface);
@@ -301,8 +311,11 @@ static int dfuse_special_command(struct dfu_if *dif, unsigned int address,
 		/* wait while command is executed */
 		if (verbose > 1)
 			fprintf(stderr, "   Poll timeout %i ms\n", polltimeout);
-		//milli_sleep(polltimeout);
-		milli_sleep(250);
+		
+		if (polltimeout == 0)
+			polltimeout = 250;
+		
+		milli_sleep(polltimeout);
 		if (command == READ_UNPROTECT)
 			return ret;
 		/* Workaround for e.g. Black Magic Probe getting stuck */
